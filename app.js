@@ -1,11 +1,19 @@
 import express from 'express';
 import { PORT } from './config/env.js';
 import connectToDatabase from './database/mongodb.js';
+import authRouter from './routes/auth.routes.js';
+import cors from 'cors'
 
 const app=express();
+app.use(cors({
+    origin: true,
+    credentials: true
+}))
+app.use(express.json())
+app.use('/api/auth', authRouter);
 
 app.get('/',(req,res)=>{
-res.send('welcome');
+res.send('welcome to rupeeswap');
 });
 
 app.listen(PORT,async()=>{
