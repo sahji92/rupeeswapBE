@@ -1,9 +1,9 @@
 import express from 'express';
-import { PORT } from './config/env.js';
+import { JWT_SECRET, PORT } from './config/env.js';
 import connectToDatabase from './database/mongodb.js';
 import authRouter from './routes/auth.routes.js';
 import cors from 'cors'
-
+import jwt from 'jsonwebtoken'
 const app=express();
 app.use(cors({
     origin: true,

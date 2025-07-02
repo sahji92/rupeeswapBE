@@ -10,12 +10,11 @@ const client = twilio(TWILIO_ACCOUNT_SID,TWILIO_AUTH_TOKEN);
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 
-
 // Signup: Send OTP
 export const signupSendOtp = async (req, res) => {
     console.log('Log for createUser:',req.body)
   const {username,phone,location,services} =req.body;
-
+  
   if (!phone) return res.status(400).json({ message: 'Phone number is required' });
 
   try {
@@ -52,7 +51,6 @@ export const  signupVerifyOtp= async (req, res) => {
 
   try {
     const user = await User.findById(userId);
-
     if (!user) return res.status(400).json({ message: 'User not found' });
     if (user.otp !== otp) return res.status(400).json({ message: 'Invalid OTP' });
     if (user.otpExpires < Date.now()) return res.status(400).json({ message: 'OTP expired' });
@@ -61,9 +59,10 @@ export const  signupVerifyOtp= async (req, res) => {
     user.otpExpires = null;
     await user.save();
 
-    const token = jwt.sign({ userId: user._id },JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ userId: user._id},JWT_SECRET, { expiresIn: '1h' });
 
-    res.status(200).json({ message: 'Signup successful', token, user: { phone: user.phone, name: user.name } });
+    res.status(200).json({ message: 'Signup successful', token});
+  
   } catch (error) {
     console.error('Error in signupVerifyOtp:', error);
     res.status(500).json({ message: 'Failed to verify OTP' });
@@ -91,7 +90,7 @@ export const  loginSendOtp= async (req, res) => {
 
     await client.messages.create({
       body: `Your OTP for login is ${otp}`,
-      from: process.env.TWILIO_PHONE_NUMBER,
+      from: TWILIO_PHONE_NUMBER,
       to: phone,
     });
 
@@ -119,11 +118,34 @@ export const  loginVerifyOtp = async (req, res) => {
     user.otpExpires = null;
     await user.save();
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1h' });
 
     res.status(200).json({ message: 'Login successful', token, user: { phone: user.phone, name: user.name } });
   } catch (error) {
     console.error('Error in loginVerifyOtp:', error);
     res.status(500).json({ message: 'Failed to verify OTP' });
+  }
+};
+export const getUser = async (req, res) => {
+  try {
+    console.log("req.user:", req.user); // Debug JWT middleware output
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ message: 'Authentication failed: Invalid or missing user ID' });
+    }
+    const userId = req.user.userId;
+    const user = await User.findById(userId).select('username phone');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(200).json({
+      message: 'User data retrieved successfully',
+      user: {
+        phone: user.phone,
+        name: user.username,
+      },
+    });
+  } catch (error) {
+    console.error('Error in getUser:', error);
+    res.status(500).json({ message: 'Failed to retrieve user data' });
   }
 };

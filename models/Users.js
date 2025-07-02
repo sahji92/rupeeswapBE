@@ -4,7 +4,7 @@ const userSchema = new Schema({
   username: { type: String },
   phone: { type: String, unique: true, required: true },
   location:{type:String},
-  services:{type:Map},
+  services:{type:Object},
   otp: { type: String },
   otpExpires: { type: Date },
 },{timestamps:true});
