@@ -12,23 +12,31 @@ const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString()
 
 // Signup: Send OTP
 export const signupSendOtp = async (req, res) => {
-    console.log('Log for createUser:',req.body)
-  const {username,phone,location,services} =req.body;
-  
+  console.log('Log for createUser:', req.body); // Already present
+  const { username, phone, location, latitude, longitude, services } = req.body;
+
   if (!phone) return res.status(400).json({ message: 'Phone number is required' });
 
   try {
     const existingUser = await User.findOne({ phone });
     if (existingUser) {
       return res.status(400).json({ message: 'Phone number already registered' });
-  };
-    
+    }
 
     const otp = generateOTP();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
-
-    const user = new User({ username,phone,location,services,otp,otpExpires });
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    const user = new User({
+      username,
+      phone,
+      address: location, // Save formatted address from req.body.location
+      location: latitude && longitude ? { type: "Point", coordinates: [parseFloat(longitude), parseFloat(latitude)] } : undefined,
+      services,
+      otp,
+      otpExpires
+    });
+    console.log('User to be saved:', user); // Debug: Log user object before saving
     await user.save();
+    console.log('User saved:', await User.findById(user._id)); // Debug: Log saved user
 
     await client.messages.create({
       body: `Your OTP for signup is ${otp}`,
@@ -128,20 +136,23 @@ export const  loginVerifyOtp = async (req, res) => {
 };
 export const getUser = async (req, res) => {
   try {
-    console.log("req.user:", req.user); // Debug JWT middleware output
+    console.log("req.user:", req.user);
     if (!req.user || !req.user.userId) {
       return res.status(401).json({ message: 'Authentication failed: Invalid or missing user ID' });
     }
     const userId = req.user.userId;
-    const user = await User.findById(userId).select('username phone');
+    const user = await User.findById(userId).select('username phone address services');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+    console.log('Fetched user:', user); // Debug: Log fetched user
     res.status(200).json({
       message: 'User data retrieved successfully',
       user: {
         phone: user.phone,
-        name: user.username,
+        username: user.username,
+        address: user.address || 'Unknown', // Fallback to 'Unknown'
+        services: user.services
       },
     });
   } catch (error) {
@@ -149,3 +160,23 @@ export const getUser = async (req, res) => {
     res.status(500).json({ message: 'Failed to retrieve user data' });
   }
 };
+export const getNearbyUsers = async (req, res) => {
+  const { latitude, longitude, radius = 2000 } = req.body; // Default radius: 2km
+  try {
+    if (!latitude || !longitude) {
+      return res.status(400).json({ message: 'Latitude and longitude are required' });
+    }
+    const users = await User.find({
+      location: {
+        $near: {
+          $geometry: { type: "Point", coordinates: [parseFloat(longitude), parseFloat(latitude)] },
+          $maxDistance: radius // In meters
+        }
+      }
+    }).select('username location phone services').limit(10); // Limited fields for privacy
+    res.status(200).json({ message: 'Nearby users retrieved successfully', users });
+  } catch (error) {
+    console.error('Error in nearby:', error);
+    res.status(500).json({ message: 'Failed to fetch nearby users' });
+  }
+}

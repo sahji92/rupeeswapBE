@@ -1,5 +1,5 @@
 import { Router } from "express";
-import {signupSendOtp,signupVerifyOtp,loginSendOtp,loginVerifyOtp, getUser} from '../controller/authController.js'
+import {signupSendOtp,signupVerifyOtp,loginSendOtp,loginVerifyOtp, getUser, getNearbyUsers} from '../controller/authController.js'
 import authenticateToken from "../middlewares/authenticateToken.js";
 const authRouter = Router();
 
@@ -11,5 +11,7 @@ authRouter.get('/get-user',authenticateToken, getUser);
 authRouter.post("/sign-out", (req, res) => {
   res.send({ title: "signout" });
 });
+authRouter.post("/nearby",getNearbyUsers) 
+
 
 export default authRouter;
